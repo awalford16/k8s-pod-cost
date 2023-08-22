@@ -40,11 +40,11 @@ func AnnotatePod(clientset *kubernetes.Clientset, namespace, podName string, ann
 }
 
 func main() {
-	// kubeconfig := filepath.Join(homedir.HomeDir(), ".kube", "config")
+	kubeConfigPath := os.Getenv("KUBECONFIG")
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		// Fallback to using KUBECONFIG path if available
-		config, err = clientcmd.BuildConfigFromFlags("", "/home/adamw/.kube/config")
+		config, err = clientcmd.BuildConfigFromFlags("", kubeConfigPath)
 		if err != nil {
 			panic(err.Error())
 		}
