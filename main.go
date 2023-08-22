@@ -75,6 +75,11 @@ func main() {
 			panic(err.Error())
 		}
 
+		if len(podMetricsList.Items) == 0 {
+			fmt.Println("List of pods is empty, no applications to monitor")
+			return
+		}
+
 		for _, v := range podMetricsList.Items {
 			pod := v.GetName()
 			memory := v.Containers[0].Usage.Memory().Value() / (1024 * 1024)
