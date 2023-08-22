@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"strconv"
+	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -58,25 +60,42 @@ func main() {
 		panic(err.Error())
 	}
 
-	namespace := "default" // leave empty to get data from all namespaces
-	podMetricsList, err := metricsCS.MetricsV1beta1().PodMetricses(namespace).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		panic(err.Error())
+	namespace := "" // leave empty to get data from all namespaces
+	applications := os.Getenv("APPLICATIONS")
+	if applications == "" {
+		fmt.Println("No applications to monitor")
+		return
 	}
 
-	for _, v := range podMetricsList.Items {
-		pod := v.GetName()
-		memory := v.Containers[0].Usage.Memory().Value() / (1024 * 1024)
-
-		annotations := map[string]string{
-			"controller.kubernetes.io/pod-deletion-cost": strconv.Itoa(int(memory * -1)),
-		}
-
-		err = AnnotatePod(cs, namespace, pod, annotations)
+	for {
+		podMetricsList, err := metricsCS.MetricsV1beta1().PodMetricses(namespace).List(context.TODO(), metav1.ListOptions{
+			LabelSelector: fmt.Sprintf("app.kubernetes.io/name in (%s)", applications),
+		})
 		if err != nil {
-			log.Fatalf("Error annotating pod: %v", err)
+			panic(err.Error())
 		}
 
-		fmt.Println("Pod annotated successfully!")
+		for _, v := range podMetricsList.Items {
+			pod := v.GetName()
+			memory := v.Containers[0].Usage.Memory().Value() / (1024 * 1024)
+
+			fmt.Printf("%s: %d\n", pod, memory)
+
+			// Annotate pod based on memory consumption
+			// Higher memory usage will score worse on scale down
+			annotations := map[string]string{
+				"controller.kubernetes.io/pod-deletion-cost": strconv.Itoa(int(memory * -1)),
+			}
+
+			err = AnnotatePod(cs, v.GetNamespace(), pod, annotations)
+			if err != nil {
+				log.Fatalf("Error annotating pod: %v", err)
+			}
+
+			fmt.Println("Pod annotated successfully!")
+		}
+
+		// Re-annotate pods every minute
+		time.Sleep(time.Second * 60)
 	}
 }
