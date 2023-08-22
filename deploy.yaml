@@ -29,20 +29,23 @@ roleRef:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: golang-app
+  name: pod-cost-manager
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: golang-app
+      app: pod-cost-manager
   template:
     metadata:
       labels:
-        app: golang-app
+        app: pod-cost-manager
     spec:
       serviceAccountName: pod-metrics-reader
       containers:
         - name: golang-app
-          image: triton-monitor:0.1.0
+          image: pod-cost-manager:0.1.0
+          env:
+            - name: APPLICATIONS
+              value: "app1,app2"
           ports:
             - containerPort: 8080
